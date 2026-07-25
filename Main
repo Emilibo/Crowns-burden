@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no">
+<title>Crown's Burden</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=MedievalSharp&family=EB+Garamond:ital,wght@0,400;0,500;0,600;1,400&display=swap');
+
+  :root{
+    --ink: #1b120c;
+    --parchment: #e9dcb8;
+    --parchment2: #d8c69a;
+    --burgundy: #5c1220;
+    --burgundy-deep: #2c0a10;
+    --gold: #c9a227;
+    --gold-bright: #ecd27f;
+    --forest: #33532f;
+    --forest-bright: #6f9c5f;
+    --blood: #7a1f1f;
+    --blood-bright: #c0453a;
+  }
+
+  *{ box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  html, body{
+    margin:0; padding:0; height:100%;
+    background: var(--burgundy-deep);
+    font-family: 'EB Garamond', serif;
+    color: var(--parchment);
+    overflow: hidden;
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: none;
+  }
+
+  #bg{
+    position: fixed; inset:0;
+    background:
+      radial-gradient(ellipse at 50% -10%, rgba(201,162,39,0.14), transparent 55%),
+      radial-gradient(ellipse at 50% 110%, rgba(0,0,0,0.55), transparent 60%),
+      linear-gradient(180deg, #3b0f18 0%, #2c0a10 55%, #1c060a 100%);
+    z-index:0;
+  }
+  #bg::after{
+    content:"";
+    position:absolute; inset:0;
+    background-image:
+      repeating-linear-gradient(0deg, rgba(0,0,0,0.06) 0px, rgba(0,0,0,0.06) 1px, transparent 1px, transparent 3px);
+    opacity:0.35;
+    mix-blend-mode: overlay;
+  }
+
+  .torch{
+    position:absolute; top: 6px; width: 46px; height: 70px; pointer-events:none; z-index:1;
+  }
+  .torch.left{ left: 4px; }
+  .torch.right{ right: 4px; }
+  .torch .flame{
+    position:absolute; left:50%; top:0; width:20px; height:30px; transform: translateX(-50%);
+    background: radial-gradient(ellipse at 50% 70%, #fff3c0 0%, #f2a839 35%, #c0451f 65%, transparent 75%);
+    border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
+    filter: blur(0.3px);
+    animation: flameFlicker 1.6s ease-in-out infinite;
+    box-shadow: 0 0 18px 6px rgba(242,168,57,0.35);
+  }
+  .torch .stick{ position:absolute; left:50%; top:26px; width:6px; height:34px; background: linear-gradient(180deg,#5c4227,#2c1c10); transform: translateX(-50%); border-radius: 2px; }
+  @keyframes flameFlicker{
+    0%,100%{ transform: translateX(-50%) scaleY(1) scaleX(1) rotate(0deg); opacity:1; }
+    25%{ transform: translateX(-52%) scaleY(1.08) scaleX(0.92) rotate(-3deg); opacity:0.92; }
+    50%{ transform: translateX(-48%) scaleY(0.94) scaleX(1.05) rotate(2deg); opacity:1; }
+    75%{ transform: translateX(-51%) scaleY(1.05) scaleX(0.95) rotate(-2deg); opacity:0.9; }
+  }
+
+  .mote{
+    position:fixed; z-index:1; pointer-events:none; border-radius:50%;
+    background: rgba(233,220,184,0.25);
+    animation: moteRise linear forwards;
+  }
+  @keyframes moteRise{
+    0%{ transform: translateY(0) translateX(0); opacity:0; }
+    10%{ opacity: 0.7; }
+    90%{ opacity: 0.3; }
+    100%{ transform: translateY(-120px) translateX(var(--drift,10px)); opacity:0; }
+  }
+
+  #flash{
+    position:fixed; inset:0; z-index: 15; pointer-events:none; opacity:0; mix-blend-mode: screen;
+  }
+  #flash.approve{ background: radial-gradient(circle at 50% 50%, rgba(111,156,95,0.55), transparent 65%); animation: flashPulse 0.5s ease-out; }
+  #flash.reject{ background: radial-gradient(circle at 50% 50%, rgba(192,69,58,0.55), transparent 65%); animation: flashPulse 0.5s ease-out; }
+  @keyframes flashPulse{ 0%{ opacity:0.9; } 100%{ opacity:0; } }
+
+  #app{
+    position: relative;
+    z-index: 2;
+    width: 100vw; height: 100vh;
+    display:flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 12px 16px;
+  }
+
+  #topbar{
+    width: 100%;
+    max-width: 480px;
+    display:flex;
+    align-items:center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+    padding: 0 2px;
+  }
+  #dayCounter{
+    font-family: 'MedievalSharp', cursive;
+    color: var(--gold-bright);
+    font-size: 15px;
+    letter-spacing: 1px;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    display:inline-block;
+    transform-origin: center;
+  }
+  #dayCounter.bump{ animation: dayBump 0.4s ease; }
+  @keyframes dayBump{
+    0%{ transform: scale(1) rotate(0); }
+    35%{ transform: scale(1.35) rotate(-4deg); color: #fff3c0; }
+    100%{ transform: scale(1) rotate(0); }
+  }
+  #bestCounter{
+    font-size: 13px;
+    color: rgba(233,220,184,0.55);
+    font-style: italic;
+  }
+
+  #stats{
+    width: 100%;
+    max-width: 480px;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 10px;
+    position: relative;
+  }
+  .stat{
+    background: linear-gradient(180deg, rgba(0,0,0,0.28), rgba(0,0,0,0.12));
+    border: 1px solid rgba(201,162,39,0.35);
+    border-radius: 8px;
+    padding: 6px 6px 7px;
+    position: relative;
+    transition: transform 0.15s ease;
+  }
+  .stat.bump{ animation: statBump 0.4s ease; }
+  @keyframes statBump{ 0%{transform:scale(1);} 40%{transform:scale(1.08);} 100%{transform:scale(1);} }
+  .stat.danger{
+    border-color: var(--blood-bright);
+    box-shadow: 0 0 10px rgba(192,69,58,0.55);
+    animation: dangerPulse 1.2s ease-in-out infinite;
+  }
+  @keyframes dangerPulse{
+    0%,100%{ box-shadow: 0 0 6px rgba(192,69,58,0.35); }
+    50%{ box-shadow: 0 0 14px rgba(192,69,58,0.75); }
+  }
+  .stat-top{ display:flex; align-items:center; gap:4px; margin-bottom:4px; }
+  .stat-icon{ font-size: 13px; line-height:1; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.6)); }
+  .stat-name{ font-size: 10px; text-transform: uppercase; letter-spacing: 0.6px; color: rgba(233,220,184,0.7); }
+  .stat-bar{ height: 7px; background: rgba(0,0,0,0.4); border-radius: 4px; overflow:hidden; border: 1px solid rgba(0,0,0,0.5); }
+  .stat-fill{ height:100%; border-radius: 4px; transition: width 0.5s cubic-bezier(.34,1.56,.64,1), background 0.35s ease; position:relative; }
+  .stat-fill::after{
+    content:""; position:absolute; inset:0;
+    background: linear-gradient(90deg, transparent, rgba(255,255,255,0.35), transparent);
+    transform: translateX(-100%);
+  }
+  .stat-fill.shine::after{ animation: shineSweep 0.6s ease; }
+  @keyframes shineSweep{ to{ transform: translateX(100%); } }
+
+  .floatnum{
+    position:absolute; top:-4px; left:50%; transform: translateX(-50%);
+    font-family:'MedievalSharp',cursive; font-size: 13px; font-weight:bold;
+    pointer-events:none; white-space:nowrap;
+    animation: floatUp 1.1s ease-out forwards;
+    z-index: 6;
+  }
+  .floatnum.pos{ color: #8fe08a; text-shadow: 0 0 6px rgba(0,0,0,0.8); }
+  .floatnum.neg{ color: #ff8a7a; text-shadow: 0 0 6px rgba(0,0,0,0.8); }
+  @keyframes floatUp{
+    0%{ opacity:0; transform: translate(-50%, 4px) scale(0.7); }
+    20%{ opacity:1; transform: translate(-50%, -6px) scale(1.15); }
+    100%{ opacity:0; transform: translate(-50%, -32px) scale(1); }
+  }
+
+  .particle{
+    position: fixed; z-index: 25; pointer-events:none; font-size: 18px;
+    animation: particleFly 0.9s ease-out forwards;
+  }
+  @keyframes particleFly{
+    0%{ opacity:1; transform: translate(0,0) scale(0.6) rotate(0deg); }
+    100%{ opacity:0; transform: translate(var(--px,0px), var(--py,-60px)) scale(1.1) rotate(var(--pr,90deg)); }
+  }
+
+  #stage{
+    flex: 1;
+    width: 100%;
+    max-width: 480px;
+    position: relative;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height: 0;
+  }
+
+  #card{
+    width: min(86vw, 340px);
+    height: min(60vh, 460px);
+    background:
+      radial-gradient(ellipse at 30% 15%, rgba(255,255,255,0.10), transparent 45%),
+      linear-gradient(180deg, var(--parchment) 0%, var(--parchment2) 100%);
+    border-radius: 14px;
+    border: 3px solid var(--ink);
+    box-shadow:
+      0 14px 30px rgba(0,0,0,0.55),
+      inset 0 0 0 2px rgba(201,162,39,0.5),
+      inset 0 0 40px rgba(92,18,32,0.08);
+    position: relative;
+    display:flex;
+    flex-direction: column;
+    align-items:center;
+    padding: 12px 18px 14px;
+    color: var(--ink);
+    cursor: grab;
+    touch-action: none;
+    will-change: transform;
+    animation: dealIn 0.45s cubic-bezier(.2,.8,.2,1);
+  }
+  #card:active{ cursor: grabbing; }
+  #card::before{
+    content:"";
+    position:absolute; inset: 6px;
+    border: 1px solid rgba(92,18,32,0.35);
+    border-radius: 9px;
+    pointer-events:none;
+  }
+  @keyframes dealIn{
+    0%{ opacity:0; transform: translateY(-70px) rotate(-10deg) scale(0.9); }
+    60%{ opacity:1; transform: translateY(6px) rotate(2deg) scale(1.02); }
+    100%{ opacity:1; transform: translateY(0) rotate(0) scale(1); }
+  }
+
+  #portraitWrap{
+    width: 92px; height: 106px;
+    margin-top: 2px; margin-bottom: 2px;
+    animation: portraitBob 3.4s ease-in-out infinite;
+    filter: drop-shadow(0 4px 4px rgba(0,0,0,0.35));
+  }
+  @keyframes portraitBob{
+    0%,100%{ transform: translateY(0) rotate(0deg); }
+    50%{ transform: translateY(-3px) rotate(0.6deg); }
+  }
+  #portraitWrap svg{ width:100%; height:100%; display:block; }
+  .eye{ animation: blink 4.2s ease-in-out infinite; transform-origin: center; }
+  @keyframes blink{
+    0%,92%,100%{ transform: scaleY(1); }
+    95%{ transform: scaleY(0.12); }
+  }
+
+  #cardTitle{
+    font-family: 'MedievalSharp', cursive;
+    font-size: 20px;
+    color: var(--burgundy);
+    text-align:center;
+    margin: 0 0 8px;
+    letter-spacing: 0.5px;
+  }
+  #cardText{
+    font-size: 17px;
+    line-height: 1.4;
+    text-align:center;
+    color: var(--ink);
+    overflow-y:auto;
+    padding: 0 2px;
+    flex: 1;
+  }
+
+  .stamp{
+    position:absolute;
+    top: 46%;
+    left:50%;
+    font-family: 'MedievalSharp', cursive;
+    font-size: 42px;
+    padding: 4px 18px;
+    border: 5px solid currentColor;
+    border-radius: 10px;
+    transform: translate(-50%,-50%) rotate(-18deg) scale(0.4);
+    opacity: 0;
+    pointer-events:none;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    z-index: 8;
+  }
+  .stamp.approve{ color: var(--forest); }
+  .stamp.reject{ color: var(--blood); }
+  .stamp.show{ animation: stampIn 0.35s ease-out forwards; }
+  @keyframes stampIn{
+    0%{ opacity:0; transform: translate(-50%,-50%) rotate(-18deg) scale(0.4); }
+    60%{ opacity:1; transform: translate(-50%,-50%) rotate(-14deg) scale(1.15); }
+    100%{ opacity:1; transform: translate(-50%,-50%) rotate(-14deg) scale(1); }
+  }
+
+  .corner-fx{
+    position:absolute;
+    bottom: 10px;
+    display:flex;
+    gap: 6px;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+  }
+  #fxLeft{ left: 10px; }
+  #fxRight{ right: 10px; }
+  .fx-pill{
+    display:flex; align-items:center; gap:2px;
+    background: rgba(255,255,255,0.55);
+    border: 1px solid rgba(0,0,0,0.25);
+    border-radius: 10px;
+    padding: 2px 6px;
+    font-size: 12px;
+    font-weight: 600;
+  }
+  .fx-pill.neg{ color: var(--blood); }
+  .fx-pill.pos{ color: var(--forest); }
+
+  #choices{
+    width: 100%;
+    max-width: 480px;
+    display:flex;
+    justify-content: space-between;
+    gap: 12px;
+    margin-top: 12px;
+    padding: 0 4px;
+  }
+  .choiceBtn{
+    flex: 1;
+    font-family: 'MedievalSharp', cursive;
+    font-size: 15px;
+    letter-spacing: 0.5px;
+    padding: 11px 8px;
+    border-radius: 8px;
+    border: 1px solid rgba(201,162,39,0.55);
+    cursor: pointer;
+    color: var(--parchment);
+    background: linear-gradient(180deg, rgba(0,0,0,0.25), rgba(0,0,0,0.1));
+    box-shadow: 0 2px 0 rgba(0,0,0,0.4);
+    transition: transform 0.08s ease, box-shadow 0.08s ease;
+  }
+  .choiceBtn:active{ transform: translateY(2px); box-shadow: 0 0px 0 rgba(0,0,0,0.4); }
+  #leftBtn{ border-color: rgba(192,69,58,0.6); }
+  #leftBtn:before{ content:"✕  "; color: var(--blood-bright); }
+  #rightBtn:before{ content:"✓  "; color: var(--forest-bright); }
+
+  #hint{
+    text-align:center;
+    font-size: 12px;
+    color: rgba(233,220,184,0.45);
+    margin-top: 6px;
+    font-style: italic;
+  }
+
+  #advisor{
+    position: fixed;
+    left: 10px; bottom: 10px;
+    z-index: 30;
+    display:flex; align-items:flex-end; gap:8px;
+    pointer-events: none;
+  }
+  #advisorPortrait{
+    width: 54px; height: 60px;
+    pointer-events: auto;
+    cursor: pointer;
+    filter: drop-shadow(0 3px 4px rgba(0,0,0,0.5));
+    animation: portraitBob 3.8s ease-in-out infinite;
+  }
+  #advisorPortrait svg{ width:100%; height:100%; display:block; }
+  #advisorBubble{
+    position: relative;
+    max-width: 250px;
+    background: linear-gradient(180deg, var(--parchment), var(--parchment2));
+    color: var(--ink);
+    border: 2px solid var(--ink);
+    border-radius: 10px;
+    padding: 9px 12px;
+    font-size: 14px;
+    line-height: 1.35;
+    margin-bottom: 4px;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.45);
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+    transform-origin: bottom left;
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+  #advisorBubble.show{ opacity:1; transform: translateY(0) scale(1); }
+  #advisorBubble::after{
+    content:"";
+    position:absolute; left: 14px; bottom: -9px;
+    border-width: 9px 8px 0 0;
+    border-style: solid;
+    border-color: var(--ink) transparent transparent transparent;
+  }
+  #advisorBubble::before{
+    content:"";
+    position:absolute; left: 16px; bottom: -6px;
+    border-width: 7px 6px 0 0;
+    border-style: solid;
+    border-color: var(--parchment2) transparent transparent transparent;
+    z-index:1;
+  }
+  #advisorName{
+    font-family:'MedievalSharp', cursive; font-size: 12px; color: var(--burgundy);
+    margin-bottom: 2px; letter-spacing: 0.4px;
+  }
+
+  #overlay{
+    position:absolute; inset:0;
+    z-index: 20;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    background: radial-gradient(ellipse at center, rgba(44,10,16,0.94), rgba(20,4,7,0.98));
+    text-align:center;
+    padding: 26px;
+  }
+  #overlay h1{
+    font-family:'MedievalSharp', cursive;
+    font-size: clamp(30px,7vw,46px);
+    color: var(--gold-bright);
+    margin: 0 0 6px;
+    text-shadow: 0 0 18px rgba(201,162,39,0.35), 0 2px 0 #000;
+  }
+  #overlay .crest{ font-size: 46px; margin-bottom: 8px; filter: drop-shadow(0 3px 4px rgba(0,0,0,0.5)); display:inline-block; }
+  #overlay .crest.shatter{ animation: crestShatter 0.9s ease-in forwards; }
+  @keyframes crestShatter{
+    0%{ transform: scale(1) rotate(0); opacity:1; }
+    30%{ transform: scale(1.2) rotate(-8deg); }
+    60%{ transform: scale(0.9) rotate(14deg); opacity:1; }
+    100%{ transform: scale(0.6) rotate(50deg) translateY(30px); opacity:0.15; }
+  }
+  #overlay .sub{
+    max-width: 420px;
+    font-size: 18px;
+    line-height:1.55;
+    color: var(--parchment2);
+    margin-bottom: 18px;
+  }
+  #overlay .rule{ width:130px; height:1px; background: linear-gradient(90deg,transparent,var(--gold),transparent); margin: 10px 0 16px; }
+  #endTitle{ font-family:'MedievalSharp', cursive; font-size: 22px; color: var(--blood-bright); margin-bottom: 6px; opacity:0; animation: fadeUp 0.6s ease 0.3s forwards; }
+  #endReason{ font-size: 17px; color: var(--parchment2); max-width: 400px; margin-bottom: 6px; line-height:1.5; opacity:0; animation: fadeUp 0.6s ease 0.55s forwards; }
+  #endDays{ font-size: 16px; color: var(--gold-bright); margin-bottom: 18px; opacity:0; animation: fadeUp 0.6s ease 0.8s forwards; }
+  @keyframes fadeUp{ from{ opacity:0; transform: translateY(10px);} to{ opacity:1; transform: translateY(0);} }
+
+  .bigBtn{
+    font-family:'MedievalSharp', cursive;
+    font-size: 20px;
+    letter-spacing: 1.5px;
+    background: linear-gradient(180deg, #4a1620, #26090f);
+    color: var(--gold-bright);
+    border: 1px solid var(--gold);
+    border-radius: 8px;
+    padding: 12px 32px;
+    cursor: pointer;
+    box-shadow: 0 3px 0 #000, 0 0 22px rgba(201,162,39,0.12);
+  }
+  .bigBtn:active{ transform: translateY(2px); box-shadow: 0 1px 0 #000; }
+
+  .hidden{ display:none !important; }
+
+  #ruleList{
+    display:flex; gap: 16px; margin-bottom: 4px; flex-wrap: wrap; justify-content:center; max-width: 380px;
+  }
+  #ruleList div{ font-size: 12.5px; color: rgba(233,220,184,0.6); display:flex; flex-direction:column; align-items:center; gap:2px; }
+  #ruleList span.ic{ font-size: 20px; }
+</style>
+</head>
+<body>
+<div id="bg"></div>
+<div class="torch left"><div class="stick"></div><div class="flame"></div></div>
+<div class="torch right"><div class="stick"></div><div class="flame"></div></div>
+<div id="flash"></div>
+
+<div id="app">
+
+  <div id="topbar">
+    <div id="dayCounter">Day 1</div>
+    <div id="bestCounter"></div>
+  </div>
+
+  <div id="stats">
+    <div class="stat" id="stat-folk">
+      <div class="stat-top"><span class="stat-icon">👑</span><span class="stat-name">People</span></div>
+      <div class="stat-bar"><div class="stat-fill" id="fill-folk"></div></div>
+    </div>
+    <div class="stat" id="stat-guld">
+      <div class="stat-top"><span class="stat-icon">💰</span><span class="stat-name">Treasury</span></div>
+      <div class="stat-bar"><div class="stat-fill" id="fill-guld"></div></div>
+    </div>
+    <div class="stat" id="stat-kirke">
+      <div class="stat-top"><span class="stat-icon">⛪</span><span class="stat-name">Church</span></div>
+      <div class="stat-bar"><div class="stat-fill" id="fill-kirke"></div></div>
+    </div>
+    <div class="stat" id="stat-haer">
+      <div class="stat-top"><span class="stat-icon">⚔️</span><span class="stat-name">Army</span></div>
+      <div class="stat-bar"><div class="stat-fill" id="fill-haer"></div></div>
+    </div>
+  </div>
+
+  <div id="stage">
+    <div id="card">
+      <div id="fxLeft" class="corner-fx"></div>
+      <div id="fxRight" class="corner-fx"></div>
+      <div class="stamp reject" id="stampReject">DENIED</div>
+      <div class="stamp approve" id="stampApprove">GRANTED</div>
+      <div id="portraitWrap"></div>
+      <div id="cardTitle">Crown's Burden</div>
+      <div id="cardText">Your father, King Alderic the Third, is dead. The crown now rests heavy on your head. The realm awaits your decisions.</div>
+    </div>
+  </div>
+
+  <div id="choices">
+    <button class="choiceBtn" id="leftBtn">Deny</button>
+    <button class="choiceBtn" id="rightBtn">Grant</button>
+  </div>
+
+  <div id="hint">Drag the card to a side — or use the buttons</div>
+
+  <div id="overlay">
+    <div class="crest" id="crestEl">👑</div>
+    <h1>Crown's Burden</h1>
+    <div class="sub">You are the realm's new ruler. Every card is a request, a threat, or a dilemma. Your choices shape four forces — keep them all in balance, for too little or too much of anything can cost you the throne. Your chancellor, Voss, stands ready with advice along the way.</div>
+    <div id="ruleList">
+      <div><span class="ic">👑</span>People</div>
+      <div><span class="ic">💰</span>Treasury</div>
+      <div><span class="ic">⛪</span>Church</div>
+      <div><span class="ic">⚔️</span>Army</div>
+    </div>
+    <div class="rule"></div>
+    <div id="endBlock" class="hidden">
+      <div id="endTitle"></div>
+      <div id="endReason"></div>
+      <div id="endDays"></div>
+    </div>
+    <button class="bigBtn" id="startBtn">Take the Throne</button>
+  </div>
+
+</div>
+
+<div id="advisor">
+  <div id="advisorPortrait"></div>
+  <div id="advisorBubble">
+    <div id="advisorName">Chancellor Voss</div>
+    <div id="advisorText"></div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const cardEl = document.getElementById('card');
+  const portraitWrap = document.getElementById('portraitWrap');
+  const cardTitle = document.getElementById('cardTitle');
+  const cardText = document.getElementById('cardText');
+  const leftBtn = document.getElementById('leftBtn');
+  const rightBtn = document.getElementById('rightBtn');
+  const fxLeft = document.getElementById('fxLeft');
+  const fxRight = document.getElementById('fxRight');
+  const stampReject = document.getElementById('stampReject');
+  const stampApprove = document.getElementById('stampApprove');
+  const dayCounter = document.getElementById('dayCounter');
+  const bestCounter = document.getElementById('bestCounter');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const endBlock = document.getElementById('endBlock');
+  const endTitle = document.getElementById('endTitle');
+  const endReason = document.getElementById('endReason');
+  const endDays = document.getElementById('endDays');
+  const crestEl = document.getElementById('crestEl');
+  const flashEl = document.getElementById('flash');
+  const advisorPortrait = document.getElementById('advisorPortrait');
+  const advisorBubble = document.getElementById('advisorBubble');
+  const advisorText = document.getElementById('advisorText');
+
+  const STAT_ICON = { folk:'👑', guld:'💰', kirke:'⛪', haer:'⚔️' };
+  const STAT_EMOJI_BURST = { folk:['❤️','👏'], guld:['🪙','💰'], kirke:['✨','🕊️'], haer:['⚔️','🛡️'] };
+
+  let stats, day, flags, lastIds, usedOnce, running, best, advisorTimer, currentCard;
+  best = 0;
+  const HISTORY_LEN = 6;
+
+  function clamp(v){ return Math.max(0, Math.min(100, v)); }
+
+  // ================= PORTRAIT SYSTEM =================
+  const ARCH = {
+    peasant:    { skin:'#d9a876', hair:'short', hairColor:'#5b4630', headwear:'none', robe:'#7a5a3a', accent:'#5c4227' },
+    noble:      { skin:'#e8c9a0', hair:'short', hairColor:'#3a2a1a', headwear:'circlet', headwearColor:'#c9a227', robe:'#5c1220', accent:'#c9a227' },
+    cleric:     { skin:'#e0b088', hair:'bald', headwear:'mitre', headwearColor:'#e9dcb8', robe:'#3b3b6b', accent:'#c9a227' },
+    soldier:    { skin:'#c99a70', hair:'short', hairColor:'#2a1f14', headwear:'helmet', headwearColor:'#8a8f99', robe:'#4a4a4a', accent:'#8a1f1f' },
+    merchant:   { skin:'#d9b183', hair:'short', hairColor:'#2a1f14', headwear:'cap', headwearColor:'#6b3fa0', robe:'#3a6b4a', accent:'#c9a227' },
+    witch:      { skin:'#c7b399', hair:'long', hairColor:'#1a1a1a', headwear:'witchhat', headwearColor:'#2a2a3a', robe:'#2f2440', accent:'#6b3fa0' },
+    rogue:      { skin:'#d0a67d', hair:'none', headwear:'hood', headwearColor:'#3a3a3a', robe:'#2e2e2e', accent:'#555555' },
+    jester:     { skin:'#e8c9a0', hair:'none', headwear:'jesterhat', headwearColor:'#a0243a', robe:'#243a8a', accent:'#a0243a' },
+    mystic:     { skin:'#cba888', hair:'none', headwear:'hood', headwearColor:'#4b1f6b', robe:'#2a123f', accent:'#8a5fc9' },
+    pirate:     { skin:'#c99a70', hair:'none', headwear:'bandana', headwearColor:'#8a1f1f', robe:'#3a3a3a', accent:'#c9a227' },
+    elder:      { skin:'#e0c2a0', hair:'short', hairColor:'#cfcfcf', headwear:'circlet', headwearColor:'#c9a227', robe:'#4a1f5c', accent:'#c9a227' },
+    northerner: { skin:'#eecfae', hair:'long', hairColor:'#d8b463', headwear:'furhat', headwearColor:'#e9e4da', robe:'#2f4a5c', accent:'#8a6a3f' },
+    advisor:    { skin:'#dcb68e', hair:'short', hairColor:'#b8b8b8', headwear:'none', robe:'#3a1f5c', accent:'#e8c760', mustache:true }
+  };
+
+  const EXPR = {
+    neutral: { browL:0, browR:0, mouth:'M46,80 Q60,83 74,80' },
+    smile:   { browL:2, browR:-2, mouth:'M45,77 Q60,90 75,77' },
+    worried: { browL:-14, browR:14, mouth:'M46,84 Q60,75 74,84' },
+    angry:   { browL:18, browR:-18, mouth:'M46,82 L74,82' },
+    sly:     { browL:10, browR:-4, mouth:'M46,80 Q60,81 75,75' }
+  };
+
+  function headwearSVG(a){
+    const c = a.headwearColor || a.accent;
+    switch(a.headwear){
+      case 'circlet':
+        return '<path d="M32,40 Q60,26 88,40 L84,46 Q60,34 36,46 Z" fill="'+c+'"/><circle cx="60" cy="30" r="4" fill="#e8433a"/>';
+      case 'mitre':
+        return '<path d="M40,42 Q60,4 80,42 Q70,36 60,34 Q50,36 40,42 Z" fill="'+c+'" stroke="#00000022"/><rect x="38" y="40" width="44" height="7" rx="2" fill="'+c+'"/>';
+      case 'helmet':
+        return '<path d="M30,44 Q30,10 60,10 Q90,10 90,44 L82,44 Q82,20 60,20 Q38,20 38,44 Z" fill="'+c+'"/><rect x="56" y="10" width="8" height="16" fill="#5c1220"/>';
+      case 'cap':
+        return '<path d="M34,40 Q36,14 60,14 Q84,14 86,40 Z" fill="'+c+'"/><circle cx="60" cy="12" r="5" fill="'+a.accent+'"/>';
+      case 'witchhat':
+        return '<path d="M60,-6 L88,42 Q60,32 32,42 Z" fill="'+c+'"/><rect x="30" y="40" width="60" height="8" rx="3" fill="'+c+'"/>';
+      case 'hood':
+        return '<path d="M26,50 Q26,2 60,2 Q94,2 94,50 Q80,30 60,30 Q40,30 26,50 Z" fill="'+c+'"/>';
+      case 'jesterhat':
+        return '<path d="M34,42 Q20,4 40,14 Q46,30 52,20 Q54,2 66,20 Q70,30 78,14 Q98,4 86,42 Z" fill="'+c+'"/><circle cx="40" cy="12" r="4" fill="'+a.accent+'"/><circle cx="66" cy="16" r="4" fill="#e8c760"/><circle cx="86" cy="14" r="4" fill="'+a.accent+'"/>';
+      case 'bandana':
+        return '<path d="M28,44 Q30,16 60,16 Q90,16 92,44 L80,40 Q70,30 60,30 Q50,30 40,40 Z" fill="'+c+'"/><path d="M84,40 L100,52 L88,50 Z" fill="'+c+'"/>';
+      case 'furhat':
+        return '<path d="M32,44 Q34,18 60,18 Q86,18 88,44 Z" fill="'+a.accent+'"/><path d="M28,42 Q60,52 92,42 L92,50 Q60,60 28,50 Z" fill="'+c+'"/>';
+      default: return '';
+    }
+  }
+
+  function hairSVG(a){
+    if(a.hair === 'none' || a.hair === 'bald') return '';
+    const c = a.hairColor;
+    if(a.hair === 'long'){
+      return '<path d="M28,48 Q26,90 34,108 Q40,88 40,60 Z" fill="'+c+'"/><path d="M92,48 Q94,90 86,108 Q80,88 80,60 Z" fill="'+c+'"/><path d="M30,42 Q60,18 90,42 Q90,30 60,26 Q30,30 30,42 Z" fill="'+c+'"/>';
+    }
+    return '<path d="M30,42 Q60,16 90,42 Q88,32 60,28 Q32,32 30,42 Z" fill="'+c+'"/>';
+  }
+
+  function portraitSVG(archKey, exprKey, seed){
+    const a = ARCH[archKey] || ARCH.peasant;
+    const e = EXPR[exprKey] || EXPR.neutral;
+    const d1 = (seed%1.7).toFixed(2), d2 = ((seed*1.3)%2.1).toFixed(2);
+    return '' +
+    '<svg viewBox="0 0 120 140" xmlns="http://www.w3.org/2000/svg">' +
+      '<path d="M14,140 Q14,96 60,92 Q106,96 106,140 Z" fill="'+a.robe+'"/>' +
+      '<path d="M14,140 Q14,100 34,96 L30,140 Z" fill="'+a.accent+'" opacity="0.85"/>' +
+      '<path d="M106,140 Q106,100 86,96 L90,140 Z" fill="'+a.accent+'" opacity="0.85"/>' +
+      '<rect x="50" y="78" width="20" height="18" fill="'+a.skin+'"/>' +
+      (a.hair==='long' ? hairSVG(a) : '') +
+      '<circle cx="60" cy="58" r="30" fill="'+a.skin+'"/>' +
+      (a.hair!=='long' ? hairSVG(a) : '') +
+      headwearSVG(a) +
+      (a.mustache ? '<path d="M46,74 Q60,84 74,74 Q66,80 60,78 Q54,80 46,74 Z" fill="'+a.hairColor+'"/>' : '') +
+      '<g><ellipse class="eye" cx="48" cy="58" rx="4.2" ry="5.4" fill="#1b120c" style="animation-delay:'+d1+'s"/>' +
+      '<ellipse class="eye" cx="72" cy="58" rx="4.2" ry="5.4" fill="#1b120c" style="animation-delay:'+d2+'s"/></g>' +
+      '<line x1="40" y1="'+(46-e.browL*0.15)+'" x2="52" y2="'+(46+e.browL*0.15)+'" stroke="'+(a.hairColor||'#2a1f14')+'" stroke-width="3" stroke-linecap="round" transform="rotate('+e.browL+' 46 46)"/>' +
+      '<line x1="68" y1="'+(46-e.browR*0.15)+'" x2="80" y2="'+(46+e.browR*0.15)+'" stroke="'+(a.hairColor||'#2a1f14')+'" stroke-width="3" stroke-linecap="round" transform="rotate('+e.browR+' 74 46)"/>' +
+      '<path d="'+e.mouth+'" fill="none" stroke="#5c2a1e" stroke-width="2.6" stroke-linecap="round"/>' +
+    '</svg>';
+  }
+
+  function setPortrait(container, archKey, exprKey){
+    container.innerHTML = portraitSVG(archKey, exprKey, Math.random()*10);
+  }
+
+  setPortrait(advisorPortrait, 'advisor', 'neutral');
+
+  // ================= SOUND ENGINE =================
+  let audioCtx = null;
+  function ensureAudio(){
+    if(!audioCtx){
+      try{ audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return; }
+    }
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+  }
+  document.addEventListener('pointerdown', ensureAudio, { once:true });
+
+  function tone(freq, dur, type, vol, delay, glideTo){
+    if(!audioCtx) return;
+    const t0 = audioCtx.currentTime + (delay||0);
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type||'sine';
+    osc.frequency.setValueAtTime(freq, t0);
+    if(glideTo) osc.frequency.exponentialRampToValueAtTime(glideTo, t0+dur);
+    gain.gain.setValueAtTime(0.0001, t0);
+    gain.gain.exponentialRampToValueAtTime(vol||0.15, t0+0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, t0+dur);
+    osc.connect(gain).connect(audioCtx.destination);
+    osc.start(t0); osc.stop(t0+dur+0.02);
+  }
+  function thud(){
+    if(!audioCtx) return;
+    const t0 = audioCtx.currentTime;
+    const bufSize = audioCtx.sampleRate*0.15;
+    const buf = audioCtx.createBuffer(1, bufSize, audioCtx.sampleRate);
+    const data = buf.getChannelData(0);
+    for(let i=0;i<bufSize;i++){ data[i] = (Math.random()*2-1) * (1-i/bufSize); }
+    const src = audioCtx.createBufferSource();
+    src.buffer = buf;
+    const gain = audioCtx.createGain();
+    gain.gain.setValueAtTime(0.22, t0);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0+0.15);
+    const filt = audioCtx.createBiquadFilter();
+    filt.type='lowpass'; filt.frequency.value=300;
+    src.connect(filt).connect(gain).connect(audioCtx.destination);
+    src.start(t0);
+  }
+  function sfxApprove(){ tone(440,0.12,'sine',0.16,0); tone(660,0.18,'sine',0.14,0.09); }
+  function sfxReject(){ tone(260,0.22,'sawtooth',0.12,0,140); }
+  function sfxCoin(){ tone(1200,0.08,'square',0.06,0); tone(1600,0.09,'square',0.05,0.05); }
+  function sfxDay(){ tone(320,0.06,'sine',0.06,0); }
+  function sfxAdvisor(){ tone(500,0.07,'sine',0.08,0); tone(700,0.08,'sine',0.06,0.06); }
+  function sfxGameOver(){ tone(300,0.3,'sawtooth',0.12,0,90); tone(220,0.4,'sawtooth',0.1,0.25,70); }
+  function sfxStamp(){ thud(); }
+
+  // ================= PARTICLES =================
+  function burstAt(x, y, emojis, count){
+    for(let i=0;i<count;i++){
+      const el = document.createElement('div');
+      el.className = 'particle';
+      el.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+      const ang = (Math.PI*2/count)*i + Math.random()*0.6;
+      const dist = 40 + Math.random()*50;
+      el.style.setProperty('--px', Math.cos(ang)*dist + 'px');
+      el.style.setProperty('--py', (Math.sin(ang)*dist - 30) + 'px');
+      el.style.setProperty('--pr', (Math.random()*140-70)+'deg');
+      el.style.left = x + 'px'; el.style.top = y + 'px';
+      document.body.appendChild(el);
+      setTimeout(()=> el.remove(), 950);
+    }
+  }
+  function floatNumberAt(statKey, val){
+    const box = document.getElementById('stat-'+statKey);
+    const span = document.createElement('div');
+    span.className = 'floatnum ' + (val>0?'pos':'neg');
+    span.textContent = (val>0?'+':'') + val;
+    box.appendChild(span);
+    setTimeout(()=> span.remove(), 1150);
+    box.classList.remove('bump'); void box.offsetWidth; box.classList.add('bump');
+    const fill = document.getElementById('fill-'+statKey);
+    fill.classList.remove('shine'); void fill.offsetWidth; fill.classList.add('shine');
+  }
+
+  // ================= DUST MOTES =================
+  function spawnMote(){
+    const el = document.createElement('div');
+    const size = 2 + Math.random()*3;
+    el.className = 'mote';
+    el.style.width = size+'px'; el.style.height = size+'px';
+    el.style.left = (Math.random()*100)+'vw';
+    el.style.top = (60+Math.random()*35)+'vh';
+    el.style.setProperty('--drift', (Math.random()*40-20)+'px');
+    el.style.animationDuration = (5+Math.random()*4)+'s';
+    document.body.appendChild(el);
+    setTimeout(()=> el.remove(), 9500);
+  }
+  setInterval(spawnMote, 700);
+
+  // ================= ADVISOR =================
+  const ADVISOR_LINES = {
+    intro: ["Your Majesty. I am Chancellor Voss — I have served this throne for thirty years, and I shall keep you informed.", "Watch the four pillars at the bottom of each card closely. None of them can survive standing completely empty — or completely full."],
+    folk_low: ["The people are grumbling loudly, Majesty. One more unpopular choice and I fear for the gates.", "There is talk of revolt in the streets. Show them mercy before it is too late."],
+    folk_high: ["The people grow bold on all this happiness. A people too proud rarely listens to its king."],
+    guld_low: ["The treasury echoes when one knocks on it. We should economize, Majesty."],
+    guld_high: ["So much gold attracts greedy eyes among the nobility. Watch your back."],
+    kirke_low: ["The Bishop speaks ill of you from the pulpit. That bodes nothing good."],
+    kirke_high: ["The Church grows mightier than the crown itself. Even I dare not speak against it now."],
+    haer_low: ["Our borders stand almost undefended. An enemy would not hesitate."],
+    haer_high: ["The general enjoys more loyalty among the troops than you do, Majesty. It troubles me."],
+    milestone: ["Your reign grows long. The historians will write of this.", "Another milestone reached. The realm remembers its better rulers."],
+    idle: ["A word of advice, if I may: listen with your heart, but rule with your head.", "Even the smallest decisions echo far in a realm such as this.", "I have seen five kings come and go. Balance is always the key.", "The scribes note every word you say these days.", "Sisu, they call it up north — the grit to endure. You may need some."],
+    scholar: ["That travelling scholar is welcome to try, Majesty. I shall simply outlive his fashionable theories, as I have outlived three others before him."],
+    catlover: ["A cat on the throne is hardly the strangest thing this court has seen, Majesty. I once saw a goat crowned Duke for an afternoon. Long story."],
+    ilmari: ["Ilmari again? Good — the northern furs are worth ten times what he asks. Terve, my old friend, terve."],
+    duke: ["Duke Reynard smiles too much at council, Majesty. I do not trust a man who smiles that much and says that little."],
+    gameover_folk: ["I warned of the people's wrath... may history judge you more kindly than they did."],
+    gameover_guld: ["Empty coffers have toppled more thrones than any sword, Majesty."],
+    gameover_kirke: ["Even kings bow to the judgment of faith. Peace be with you."],
+    gameover_haer: ["Without a sword to defend it, even the fairest crown falls."]
+  };
+  function pickLine(key){
+    const arr = ADVISOR_LINES[key];
+    return arr[Math.floor(Math.random()*arr.length)];
+  }
+  function showAdvisor(text, expr){
+    setPortrait(advisorPortrait, 'advisor', expr||'neutral');
+    advisorText.textContent = text;
+    advisorBubble.classList.add('show');
+    sfxAdvisor();
+    clearTimeout(advisorTimer);
+    advisorTimer = setTimeout(()=> advisorBubble.classList.remove('show'), 4400);
+  }
+  advisorPortrait.addEventListener('click', ()=>{
+    if(advisorBubble.classList.contains('show')){ advisorBubble.classList.remove('show'); }
+    else { showAdvisor(pickLine('idle'), 'neutral'); }
+  });
+
+  function maybeAdvisorSpeak(specialKey){
+    if(specialKey) return showAdvisor(pickLine(specialKey), 'smile');
+    if(stats.folk <= 18) return showAdvisor(pickLine('folk_low'),'worried');
+    if(stats.folk >= 82) return showAdvisor(pickLine('folk_high'),'sly');
+    if(stats.guld <= 18) return showAdvisor(pickLine('guld_low'),'worried');
+    if(stats.guld >= 82) return showAdvisor(pickLine('guld_high'),'sly');
+    if(stats.kirke <= 18) return showAdvisor(pickLine('kirke_low'),'worried');
+    if(stats.kirke >= 82) return showAdvisor(pickLine('kirke_high'),'sly');
+    if(stats.haer <= 18) return showAdvisor(pickLine('haer_low'),'worried');
+    if(stats.haer >= 82) return showAdvisor(pickLine('haer_high'),'sly');
+    if(day > 1 && day % 12 === 0) return showAdvisor(pickLine('milestone'),'smile');
+    if(Math.random() < 0.12) return showAdvisor(pickLine('idle'),'neutral');
+  }
+
+  // ================= GAME STATE =================
+  function resetGame(){
+    stats = { folk:50, guld:50, kirke:50, haer:50 };
+    day = 1;
+    flags = {};
+    usedOnce = new Set();
+    lastIds = [];
+    running = true;
+    renderStats();
+    dayCounter.textContent = 'Day ' + day;
+    showCard(INTRO_CARD, true);
+    setTimeout(()=> showAdvisor(pickLine('intro'), 'smile'), 900);
+  }
+
+  const INTRO_CARD = {
+    id:'intro', archetype:'noble', expression:'smile', title:"Crown's Burden",
+    text:"Your father, King Alderic the Third, is dead. The crown now rests heavy on your head. The realm awaits your decisions.",
+    left: { label:'Rule', effects:{} },
+    right: { label:'Rule', effects:{} },
+    isIntro:true
+  };
+
+  const CARDS = [
+    { id:'treasurer', archetype:'merchant', expression:'neutral', title:'The Treasurer',
+      text:'The royal treasurer requests funds to repair the royal stables, which are quite literally falling apart.',
+      left:{ label:'Deny', effects:{guld:5, folk:-5} },
+      right:{ label:'Grant', effects:{guld:-10, folk:5} } },
+
+    { id:'beggar', archetype:'peasant', expression:'worried', title:'The Beggar at the Gate',
+      text:'A starving beggar kneels at the castle gate, begging for a single meal.',
+      left:{ label:'Chase him off', effects:{folk:-8, kirke:-3} },
+      right:{ label:'Feed him', effects:{folk:5, guld:-5} } },
+
+    { id:'general', archetype:'soldier', expression:'neutral', title:'The General',
+      text:'Your general demands more funds to recruit and equip new soldiers for the crown.',
+      left:{ label:'Deny', effects:{haer:-10} },
+      right:{ label:'Grant', effects:{haer:12, guld:-12} } },
+
+    { id:'bishop', archetype:'cleric', expression:'neutral', title:'The Bishop',
+      text:'The Bishop wishes to build a grand new cathedral, for the glory of God — and, conveniently, the realm\'s reputation.',
+      left:{ label:'Deny', effects:{kirke:-10} },
+      right:{ label:'Grant', effects:{kirke:12, guld:-15} } },
+
+    { id:'merchant', archetype:'merchant', expression:'sly', title:'The Merchant',
+      text:'A wealthy merchant proposes a lucrative trade agreement with a distant kingdom.',
+      left:{ label:'Decline', effects:{guld:-5} },
+      right:{ label:'Accept', effects:{guld:15, kirke:-3} } },
+
+    { id:'farmer', archetype:'peasant', expression:'worried', title:'The Farmer',
+      text:'A farmer reports a failed harvest and humbly requests a temporary tax break.',
+      left:{ label:'Deny', effects:{folk:-12} },
+      right:{ label:'Grant relief', effects:{folk:8, guld:-8} } },
+
+    { id:'witch', archetype:'witch', expression:'worried', title:'The Accused',
+      text:'A woman accused of witchcraft is dragged before your throne. The villagers demand justice — of one kind or another.',
+      left:{ label:'Burn her', effects:{kirke:15, folk:-10} },
+      right:{ label:'Release her', effects:{folk:8, kirke:-12} } },
+
+    { id:'alliance', archetype:'noble', expression:'smile', title:'The Proposal',
+      text:'A neighboring king offers an alliance, sealed through marriage to his daughter.',
+      left:{ label:'Decline', effects:{haer:-5} },
+      right:{ label:'Accept', effects:{guld:10, haer:8}, setFlag:'married' } },
+
+    { id:'spy', archetype:'rogue', expression:'sly', title:"The Spymaster's Warning",
+      text:'Your spymaster claims to have uncovered a plot on your life — the alleged ringleader waits in the dungeon.',
+      left:{ label:'Execute him', effects:{haer:5, folk:-10} },
+      right:{ label:'Release him', effects:{folk:3, haer:-8} } },
+
+    { id:'plague', archetype:'peasant', expression:'worried', title:'Sickness Spreads',
+      text:'A contagious illness ravages the poorer quarters of the city. Your physician urges harsh measures.',
+      left:{ label:'Seal the gates', effects:{guld:-8, folk:-5} },
+      right:{ label:'Let trade continue', effects:{folk:-15, guld:5} } },
+
+    { id:'fool', archetype:'jester', expression:'smile', title:'The Court Fool',
+      text:'Your court jester humbly asks permission to stay another year at court, juggling turnips and insulting nobles.',
+      left:{ label:'Send him away', effects:{folk:-3} },
+      right:{ label:'Let him stay', effects:{folk:6, guld:-3} } },
+
+    { id:'dragon', archetype:'soldier', expression:'worried', title:'The Mountain Dragon',
+      text:'A dragon has burned a village to cinders and demands gold as tribute to leave the rest of the realm alone.',
+      left:{ label:'Pay tribute', effects:{guld:-15, folk:5} },
+      right:{ label:'Send the army', effects:{haer:-15, folk:8} } },
+
+    { id:'heir', archetype:'noble', expression:'smile', title:'An Heir is Born',
+      text:'Bells ring across the realm — you have a royal heir. The people and the Church alike celebrate the news.',
+      left:{ label:'Continue', effects:{folk:10, kirke:5} },
+      right:{ label:'Continue', effects:{folk:10, kirke:5} },
+      once:true, minDay:6 },
+
+    { id:'rebel', archetype:'rogue', expression:'angry', title:'The Captured Rebel',
+      text:'The leader of a peasant uprising has been captured and dragged, in chains, before your throne.',
+      left:{ label:'Execute him', effects:{haer:8, folk:-10} },
+      right:{ label:'Pardon him', effects:{folk:10, haer:-8} } },
+
+    { id:'guild', archetype:'merchant', expression:'neutral', title:"The Craftsmen's Guild",
+      text:"The city's carpenters' guild requests an exclusive monopoly on timber trade in the region.",
+      left:{ label:'Deny', effects:{guld:-3} },
+      right:{ label:'Grant monopoly', effects:{guld:10, folk:-8} } },
+
+    { id:'monk', archetype:'cleric', expression:'neutral', title:'The Traveling Monk',
+      text:'A wandering monk offers to sell you a saint\'s finger bone, said to bring great fortune to its owner.',
+      left:{ label:'Decline', effects:{} },
+      right:{ label:'Buy the relic', effects:{guld:-10, kirke:10}, setFlag:'relic' } },
+
+    { id:'relic2', archetype:'cleric', expression:'neutral', title:"The Church's Request",
+      text:'The Bishop has heard about your relic and asks that it be donated to the cathedral.',
+      left:{ label:'Keep it', effects:{kirke:-5} },
+      right:{ label:'Donate it', effects:{kirke:15, guld:5} },
+      requiresFlag:'relic', once:true },
+
+    { id:'ambassador', archetype:'noble', expression:'angry', title:'The Offended Ambassador',
+      text:"A foreign ambassador was gravely insulted at last night's banquet — by your own hound, no less — and demands a public apology.",
+      left:{ label:'Apologize', effects:{haer:-5, kirke:3} },
+      right:{ label:'Refuse', effects:{haer:5, guld:-8} } },
+
+    { id:'thief', archetype:'rogue', expression:'sly', title:'The Treasury Thief',
+      text:'A thief is caught red-handed with his fist in the royal treasury.',
+      left:{ label:'Cut off his hand', effects:{folk:-5, guld:3} },
+      right:{ label:'Forgive him', effects:{folk:8, guld:-3} } },
+
+    { id:'fire', archetype:'soldier', expression:'worried', title:'Fire in the Market District',
+      text:'Flames tear rapidly through the crowded market stalls at the heart of the city.',
+      left:{ label:'Send the army to fight it', effects:{haer:-8, folk:5} },
+      right:{ label:'Let it burn out', effects:{folk:-10, guld:-10} } },
+
+    { id:'chicken', archetype:'peasant', expression:'smile', title:'Chaos in the Kitchens',
+      text:'An unusually large chicken has escaped the royal kitchens and is now chasing the entire kitchen staff through the courtyard.',
+      left:{ label:'Let it run free', effects:{folk:5} },
+      right:{ label:'Catch and roast it', effects:{guld:5, folk:-3} } },
+
+    { id:'inheritance', archetype:'noble', expression:'neutral', title:'The Inheritance Dispute',
+      text:"Two noble brothers bitterly dispute their late father's lands and title, both equally convinced they deserve everything.",
+      left:{ label:'Award it all to the elder', effects:{haer:5, folk:-3} },
+      right:{ label:'Split it evenly', effects:{folk:8, haer:-5} } },
+
+    { id:'explorer', archetype:'merchant', expression:'smile', title:'The Explorer',
+      text:'An overly enthusiastic explorer requests funding for an expedition to find a legendary lost treasure.',
+      left:{ label:'Decline', effects:{} },
+      right:{ label:'Fund the voyage', effects:{guld:-10, kirke:3} } },
+
+    { id:'spouse', archetype:'noble', expression:'worried', title:'A Delicate Matter',
+      text:'Court gossip reaches your ears: your spouse is considering leaving court, citing your constant neglect.',
+      left:{ label:'Promise to do better', effects:{folk:3, kirke:5} },
+      right:{ label:'Let them go', effects:{kirke:-10, folk:-3} },
+      requiresFlag:'married' },
+
+    { id:'illness', archetype:'cleric', expression:'worried', title:"The King's Sickbed",
+      text:'You yourself have fallen ill. The court physicians argue loudly over the proper treatment.',
+      left:{ label:'Choose bloodletting', effects:{kirke:5, folk:-5} },
+      right:{ label:'Choose rest', effects:{folk:5, haer:-5} } },
+
+    { id:'mutiny', archetype:'soldier', expression:'angry', title:'Grumbling in the Ranks',
+      text:'Your officers threaten mutiny unless the soldiers\' withheld wages are paid immediately.',
+      left:{ label:'Pay them', effects:{guld:-15, haer:10} },
+      right:{ label:'Punish the ringleaders', effects:{haer:-15, folk:-5} } },
+
+    { id:'crusade', archetype:'cleric', expression:'angry', title:'The Call to Crusade',
+      text:'The Church calls for a holy crusade against distant, unknown lands. Refuse, and it will be branded heresy.',
+      left:{ label:'Refuse the call', effects:{kirke:-15} },
+      right:{ label:'Lead the crusade', effects:{kirke:15, haer:-15, guld:-10} } },
+
+    { id:'jubilee1', archetype:'jester', expression:'smile', title:'Ten Years on the Throne',
+      text:'The realm marks a decade of your rule. Your advisors ask how the celebratory surplus should be spent.',
+      left:{ label:'Save the money', effects:{guld:10} },
+      right:{ label:'Throw a grand feast', effects:{folk:15, guld:-10} },
+      once:true, minDay:10 },
+
+    { id:'famine', archetype:'peasant', expression:'worried', title:'Famine',
+      text:'Two bad harvests in a row have emptied the pantries of the poor. The granaries stand full — but opening them is costly.',
+      left:{ label:'Open the granaries', effects:{guld:-10, folk:10} },
+      right:{ label:'Keep them sealed', effects:{folk:-15} } },
+
+    { id:'seer', archetype:'mystic', expression:'sly', title:"The Seer's Warning",
+      text:'A wandering seer warns of coming disaster and offers to avert it — for a generous fee, naturally.',
+      left:{ label:'Decline', effects:{kirke:-5} },
+      right:{ label:'Pay for the ritual', effects:{guld:-8, kirke:8} } },
+
+    { id:'border', archetype:'soldier', expression:'neutral', title:'The Border Dispute',
+      text:"A neighboring lord has moved the boundary stones and now claims land that belongs to your crown.",
+      left:{ label:'Go to war', effects:{haer:-12, guld:8} },
+      right:{ label:'Negotiate peace', effects:{haer:-5, kirke:5} } },
+
+    { id:'dowager', archetype:'elder', expression:'sly', title:'The Dowager Queen',
+      text:"Your late father's widow — your stepmother — still meddles constantly in matters of state.",
+      left:{ label:'Grant her influence', effects:{folk:-5, kirke:8} },
+      right:{ label:'Refuse her counsel', effects:{kirke:-8, folk:3} } },
+
+    { id:'settlers', archetype:'peasant', expression:'smile', title:'The Settlers',
+      text:'A group of settlers requests permission to found a new town at the mouth of the river.',
+      left:{ label:'Allow it', effects:{folk:8, guld:-5} },
+      right:{ label:'Deny it', effects:{folk:-5} } },
+
+    { id:'pirates', archetype:'pirate', expression:'sly', title:'The Pirate Plague',
+      text:'Pirates are raiding your coastal towns. Your advisors are split on how best to deal with the threat.',
+      left:{ label:'Build a fleet', effects:{guld:-12, haer:8} },
+      right:{ label:'Pay them off', effects:{guld:-8, folk:-5} } },
+
+    { id:'theatre', archetype:'jester', expression:'smile', title:'The Traveling Theatre',
+      text:'A troupe of actors wishes to perform a satirical play about the royal court in the town square.',
+      left:{ label:'Forbid it', effects:{folk:-6, kirke:3} },
+      right:{ label:'Allow the show', effects:{folk:9} } },
+
+    { id:'knight_name', archetype:'soldier', expression:'smile', title:'A Matter of Honor',
+      text:'A young knight requests royal permission to officially rename his sword "Sir Pointy." He seems very serious about this.',
+      left:{ label:'Absolutely not', effects:{folk:-2} },
+      right:{ label:'So be it', effects:{folk:6} } },
+
+    { id:'bard', archetype:'jester', expression:'sly', title:'The Traveling Bard',
+      text:'A famous bard offers to write a heroic ballad about your reign — for a fee. He hints that if you refuse, he\'ll write a very different kind of song.',
+      left:{ label:'Refuse to pay', effects:{folk:-6, guld:2} },
+      right:{ label:'Commission the ballad', effects:{folk:8, guld:-8} } },
+
+    { id:'ghost_soldiers', archetype:'noble', expression:'angry', title:'The Ghost Soldiers',
+      text:'Your accountant discovers the army has been paid wages for three hundred soldiers who, as far as anyone can tell, do not exist.',
+      left:{ label:'Quietly cover it up', effects:{haer:5, guld:-8} },
+      right:{ label:'Launch an investigation', effects:{guld:5, haer:-10} } },
+
+    { id:'elephant', archetype:'merchant', expression:'smile', title:'The Royal Menagerie',
+      text:'The royal zookeeper wants to purchase an elephant for the menagerie. He insists the crowds will love it.',
+      left:{ label:'Too expensive', effects:{guld:2} },
+      right:{ label:'Buy the elephant', effects:{folk:10, guld:-12} } },
+
+    { id:'flying_machine', archetype:'merchant', expression:'worried', title:'The Flying Machine',
+      text:'An inventor demonstrates his "flying machine" in the courtyard. It immediately crashes spectacularly into the well.',
+      left:{ label:'Ban this nonsense', effects:{kirke:3, folk:-3} },
+      right:{ label:'Fund another attempt', effects:{guld:-8, folk:6} } },
+
+    { id:'composer', archetype:'jester', expression:'angry', title:'The Court Composer',
+      text:'Your court composer demands a royal monopoly on music, banning all other musicians from performing anywhere in the realm.',
+      left:{ label:'Deny the monopoly', effects:{kirke:2, folk:2} },
+      right:{ label:'Grant it', effects:{guld:5, folk:-8} } },
+
+    { id:'squid', archetype:'soldier', expression:'worried', title:'The Kraken Incident',
+      text:'A genuinely enormous squid has attacked the royal fishing fleet. The sailors swear it winked at them before diving.',
+      left:{ label:'Ignore the sailors\' tall tale', effects:{folk:-5} },
+      right:{ label:'Send the navy to investigate', effects:{guld:-10, haer:5, folk:5} } },
+
+    { id:'twins', archetype:'noble', expression:'smile', title:'The Identical Dukes',
+      text:'Two dukes, who happen to be identical twins, are both furiously claiming the same inheritance — and neither can prove which is which.',
+      left:{ label:'Flip a coin', effects:{folk:5} },
+      right:{ label:'Split it between them', effects:{folk:3, guld:-5} } },
+
+    { id:'scholar', archetype:'mystic', expression:'sly', title:'The Traveling Scholar',
+      text:'A traveling scholar claims Chancellor Voss\'s advice is hopelessly outdated and offers his own services instead.',
+      left:{ label:'Keep Chancellor Voss', effects:{folk:2}, advisorLine:'scholar' },
+      right:{ label:'Hire the scholar', effects:{kirke:-5, guld:-5} } },
+
+    { id:'comet', archetype:'mystic', expression:'worried', title:'The Comet',
+      text:'A blazing comet streaks across the night sky. Half the realm calls it an omen of doom; the other half wants a festival.',
+      left:{ label:'Declare it a bad omen', effects:{kirke:8, folk:-5} },
+      right:{ label:'Declare a festival', effects:{folk:12, guld:-6} },
+      minDay:60 },
+
+    { id:'old_crown', archetype:'elder', expression:'smile', title:'A Long Reign',
+      text:'Scribes note that few rulers in the kingdom\'s history have sat the throne as long as you. The crown, they say, has begun to fit you perfectly.',
+      left:{ label:'Humbly accept the praise', effects:{folk:6} },
+      right:{ label:'Commission a statue of yourself', effects:{folk:-4, guld:-6, kirke:4} },
+      once:true, minDay:70 },
+
+    { id:'ilmari1', archetype:'northerner', expression:'smile', title:'A Trader from the North',
+      text:'A cheerful northern trader named Ilmari arrives with a sled full of furs and amber. "Terve, your majesty!" he grins. "Best pelts south of the frozen lakes!"',
+      left:{ label:'Decline politely', effects:{} },
+      right:{ label:'Buy the furs', effects:{guld:-8, folk:5}, setFlag:'ilmariFriend', advisorLine:'ilmari' },
+      minDay:8, once:true },
+
+    { id:'ilmari2', archetype:'northerner', expression:'worried', title:"Ilmari's Trouble",
+      text:'Ilmari returns, his sled empty and his mood dark. Raiders have been attacking traders along the northern route. "Sisu only gets a man so far," he sighs.',
+      left:{ label:'Offer no help', effects:{folk:-5} },
+      right:{ label:'Send soldiers to guard the route', effects:{haer:-10, guld:15}, setFlag:'ilmariAlly' },
+      requiresFlag:'ilmariFriend', minDay:25, once:true },
+
+    { id:'ilmari3', archetype:'northerner', expression:'smile', title:'A Northern Alliance',
+      text:'Ilmari returns one last time, this time with a formal offer from his people: a lasting trade treaty between your realm and the northern clans. "Kiitos, my friend — you saved my trade route, now let us make history."',
+      left:{ label:'Sign a modest trade deal', effects:{guld:10} },
+      right:{ label:'Sign a full alliance', effects:{guld:20, haer:10, kirke:-5} },
+      requiresFlag:'ilmariAlly', minDay:50, once:true },
+
+    { id:'cat1', archetype:'peasant', expression:'smile', title:'The Throne Room Cat',
+      text:'A scruffy cat wanders into the throne room and calmly sits on your throne while you\'re not looking. The courtiers can\'t decide if it\'s a bad omen or the best thing that\'s happened all year.',
+      left:{ label:'Shoo it away', effects:{folk:-3} },
+      right:{ label:'Let it stay as the Court Cat', effects:{folk:5}, setFlag:'courtCat', advisorLine:'catlover' },
+      minDay:5, once:true },
+
+    { id:'cat2', archetype:'peasant', expression:'smile', title:'Kittens at Court',
+      text:'The Court Cat has had kittens in the royal linen closet. Half the nobility is now fighting over who gets to keep one.',
+      left:{ label:'Give the kittens to the nobles', effects:{kirke:3, folk:-2} },
+      right:{ label:'Keep them all in the castle', effects:{folk:8, guld:-3} },
+      requiresFlag:'courtCat', minDay:20, once:true },
+
+    { id:'cat3', archetype:'cleric', expression:'sly', title:'The Cult of the Court Cat',
+      text:'Rumor has spread that the Court Cat brings good fortune. A shrine in its honor has been proposed — by the Bishop, no less.',
+      left:{ label:"It's just a cat", effects:{kirke:-5} },
+      right:{ label:'Build the shrine', effects:{kirke:10, guld:-8, folk:5} },
+      requiresFlag:'courtCat', minDay:40, once:true },
+
+    { id:'duke1', archetype:'noble', expression:'sly', title:'Duke Reynard',
+      text:'Duke Reynard has taken to quietly undermining your decisions in council, always with a thin smile and a "with all due respect, Majesty."',
+      left:{ label:'Reprimand him publicly', effects:{haer:3, folk:-5}, setFlag:'dukeRival', advisorLine:'duke' },
+      right:{ label:'Ignore it, for now', effects:{folk:3}, setFlag:'dukeIgnored' },
+      minDay:10, once:true },
+
+    { id:'duke2', archetype:'noble', expression:'angry', title:"Duke Reynard's Militia",
+      text:"Word reaches you that Duke Reynard has been quietly raising a private militia on his estates. He calls it 'hunting guards.' Nobody is fooled.",
+      left:{ label:'Disband it by force', effects:{haer:-10, folk:-5}, setFlag:'dukeCrushed' },
+      right:{ label:'Let him keep it, for now', effects:{haer:-15}, setFlag:'dukeStrong' },
+      requiresFlag:'dukeRival', minDay:30, once:true },
+
+    { id:'duke3', archetype:'noble', expression:'angry', title:"The Duke's Ambition",
+      text:'Duke Reynard finally shows his hand: standing before the full court, he declares that he — not you — should wear the crown.',
+      left:{ label:'Challenge him to single combat', effects:{haer:-20, folk:15} },
+      right:{ label:'Try to buy his loyalty', effects:{guld:-25, haer:10} },
+      requiresFlag:'dukeStrong', minDay:55, once:true }
+  ];
+
+  function eligible(card){
+    if(card.once && usedOnce.has(card.id)) return false;
+    if(card.minDay && day < card.minDay) return false;
+    if(card.requiresFlag && !flags[card.requiresFlag]) return false;
+    if(card.excludesFlag && flags[card.excludesFlag]) return false;
+    if(lastIds.indexOf(card.id) !== -1) return false;
+    return true;
+  }
+
+  function pickCard(){
+    let pool = CARDS.filter(eligible);
+    if(!pool.length){
+      // relax: allow anything not equal to the very last shown card
+      pool = CARDS.filter(c => c.id !== lastIds[lastIds.length-1] &&
+        (!c.once || !usedOnce.has(c.id)) &&
+        (!c.minDay || day >= c.minDay) &&
+        (!c.requiresFlag || flags[c.requiresFlag]) &&
+        (!c.excludesFlag || !flags[c.excludesFlag]));
+    }
+    if(!pool.length){
+      pool = CARDS.filter(c => (!c.once || !usedOnce.has(c.id)) && (!c.requiresFlag || flags[c.requiresFlag]));
+    }
+    if(!pool.length) pool = CARDS;
+    return pool[Math.floor(Math.random()*pool.length)];
+  }
+
+  function statFillColor(v){
+    if(v <= 15 || v >= 85) return 'linear-gradient(90deg, var(--blood), var(--blood-bright))';
+    if(v <= 30 || v >= 70) return 'linear-gradient(90deg, #8a6a1e, var(--gold))';
+    return 'linear-gradient(90deg, #3f5a3a, var(--forest-bright))';
+  }
+
+  function renderStats(){
+    ['folk','guld','kirke','haer'].forEach(k=>{
+      const v = stats[k];
+      const fill = document.getElementById('fill-'+k);
+      fill.style.width = v + '%';
+      fill.style.background = statFillColor(v);
+      const box = document.getElementById('stat-'+k);
+      if(v <= 12 || v >= 88) box.classList.add('danger'); else box.classList.remove('danger');
+    });
+  }
+
+  function buildFx(container, effects){
+    container.innerHTML = '';
+    Object.keys(effects).forEach(k=>{
+      const val = effects[k];
+      if(!val) return;
+      const pill = document.createElement('div');
+      pill.className = 'fx-pill ' + (val > 0 ? 'pos' : 'neg');
+      pill.textContent = STAT_ICON[k] + ' ' + (val>0? '+':'') + val;
+      container.appendChild(pill);
+    });
+  }
+
+  function showCard(card, isIntro){
+    currentCard = card;
+    cardEl.style.transition = 'none';
+    cardEl.style.transform = 'translate(0px,0px) rotate(0deg)';
+    cardEl.style.opacity = '1';
+    cardEl.style.animation = 'none'; void cardEl.offsetWidth; cardEl.style.animation = '';
+    stampApprove.classList.remove('show');
+    stampReject.classList.remove('show');
+    setPortrait(portraitWrap, card.archetype || 'peasant', card.expression || 'neutral');
+    cardTitle.textContent = card.title;
+    cardText.textContent = card.text;
+    leftBtn.textContent = card.left.label;
+    rightBtn.textContent = card.right.label;
+    if(isIntro){
+      fxLeft.style.opacity = 0; fxRight.style.opacity = 0;
+    } else {
+      buildFx(fxLeft, card.left.effects);
+      buildFx(fxRight, card.right.effects);
+    }
+    requestAnimationFrame(()=>{ cardEl.style.transition = ''; });
+  }
+
+  function nextCard(){
+    lastIds.push(currentCard.id);
+    if(lastIds.length > HISTORY_LEN) lastIds.shift();
+    if(currentCard.once) usedOnce.add(currentCard.id);
+    day++;
+    dayCounter.textContent = 'Day ' + day;
+    dayCounter.classList.remove('bump'); void dayCounter.offsetWidth; dayCounter.classList.add('bump');
+    sfxDay();
+
+    const drift = Math.min(3, 1 + Math.floor(day/25));
+    stats.guld = clamp(stats.guld - drift);
+    stats.haer = clamp(stats.haer - Math.max(1, drift-1));
+    renderStats();
+
+    const overCode = checkGameOver();
+    if(overCode){ endGame(overCode); return; }
+
+    const card = pickCard();
+    showCard(card, false);
+    maybeAdvisorSpeak();
+  }
+
+  function checkGameOver(){
+    if(stats.folk <= 0) return 'folk_low';
+    if(stats.folk >= 100) return 'folk_high';
+    if(stats.guld <= 0) return 'guld_low';
+    if(stats.guld >= 100) return 'guld_high';
+    if(stats.kirke <= 0) return 'kirke_low';
+    if(stats.kirke >= 100) return 'kirke_high';
+    if(stats.haer <= 0) return 'haer_low';
+    if(stats.haer >= 100) return 'haer_high';
+    return null;
+  }
+
+  const ENDINGS = {
+    folk_low:  { title:'The Deposed', text:'The people rose in violent revolt and drove you from your own castle, never to return.', advisor:'gameover_folk' },
+    folk_high: { title:'The Redundant', text:'The people grew so confident and prosperous that they decided they no longer needed a king at all.', advisor:'gameover_folk' },
+    guld_low:  { title:'The Pauper King', text:'The treasury finally ran dry. Your creditors demanded the throne itself as payment for the realm\'s debts.', advisor:'gameover_guld' },
+    guld_high: { title:'The Greedy', text:'Your insatiable wealth provoked the envy of the nobility. One night, your wine was poisoned.', advisor:'gameover_guld' },
+    kirke_low: { title:'The Heretic', text:'The Church declared you a heretic before the entire realm, and had you deposed in disgrace.', advisor:'gameover_kirke' },
+    kirke_high:{ title:'Prisoner of Faith', text:'The Church seized total power over the realm, making you its puppet — and, soon after, entirely unnecessary.', advisor:'gameover_kirke' },
+    haer_low:  { title:'The Conquered', text:'With no army left to defend the borders, the realm fell to a foreign invasion.', advisor:'gameover_haer' },
+    haer_high: { title:'Victim of the Coup', text:'Your own general grew mightier than you and simply took by force what you would not give.', advisor:'gameover_haer' }
+  };
+
+  function endGame(code){
+    running = false;
+    if(day-1 > best) best = day-1;
+    const e = ENDINGS[code];
+    sfxGameOver();
+    endTitle.textContent = e.title;
+    endReason.textContent = e.text;
+    endDays.textContent = 'You ruled for ' + (day-1) + ' days.' + (best === (day-1) ? ' New record!' : ' (Record: ' + best + ' days)');
+    endBlock.classList.remove('hidden');
+    document.querySelector('#overlay h1').textContent = 'The End of an Era';
+    document.querySelector('#overlay .sub').classList.add('hidden');
+    document.getElementById('ruleList').classList.add('hidden');
+    startBtn.textContent = 'A New Reign';
+    crestEl.textContent = '👑';
+    crestEl.classList.remove('shatter'); void crestEl.offsetWidth; crestEl.classList.add('shatter');
+    advisorBubble.classList.remove('show');
+    setTimeout(()=>{
+      overlay.classList.remove('hidden');
+      showAdvisor(pickLine(e.advisor), 'worried');
+    }, 650);
+  }
+
+  function decide(isRight){
+    if(!running) return;
+    running = false;
+    const choice = isRight ? currentCard.right : currentCard.left;
+    if(currentCard.isIntro){
+      running = true;
+      nextCard();
+      return;
+    }
+    if(choice.setFlag) flags[choice.setFlag] = true;
+
+    isRight ? sfxApprove() : sfxReject();
+    setTimeout(sfxStamp, 90);
+
+    flashEl.className = '';
+    void flashEl.offsetWidth;
+    flashEl.className = isRight ? 'approve' : 'reject';
+
+    Object.keys(choice.effects).forEach(k=>{
+      const val = choice.effects[k];
+      if(!val) return;
+      stats[k] = clamp(stats[k] + val);
+      floatNumberAt(k, val);
+      if(Math.abs(val) >= 5){
+        const box = document.getElementById('stat-'+k);
+        const r = box.getBoundingClientRect();
+        burstAt(r.left + r.width/2, r.top + r.height/2, STAT_EMOJI_BURST[k], Math.min(6, 2+Math.floor(Math.abs(val)/4)));
+        if(k === 'guld') sfxCoin();
+      }
+    });
+    renderStats();
+
+    const stamp = isRight ? stampApprove : stampReject;
+    stamp.classList.add('show');
+
+    cardEl.style.transition = 'transform 0.4s cubic-bezier(.4,0,.2,1), opacity 0.4s ease-in';
+    cardEl.style.transform = 'translate(' + (isRight? 460 : -460) + 'px, -40px) rotate(' + (isRight? 28: -28) + 'deg)';
+    cardEl.style.opacity = '0';
+
+    const advisorLine = choice.advisorLine;
+    setTimeout(()=>{
+      running = true;
+      nextCard();
+      if(advisorLine){ setTimeout(()=> maybeAdvisorSpeak(advisorLine), 500); }
+    }, 420);
+  }
+
+  leftBtn.addEventListener('click', ()=> decide(false));
+  rightBtn.addEventListener('click', ()=> decide(true));
+
+  let dragging = false, startX=0, startY=0, curX=0, curY=0;
+
+  function pointerDown(x,y){
+    if(!running || currentCard.isIntro) return;
+    dragging = true; startX=x; startY=y; curX=0; curY=0;
+    cardEl.style.transition = 'none';
+  }
+  function pointerMove(x,y){
+    if(!dragging) return;
+    curX = x - startX; curY = y - startY;
+    const rot = curX * 0.05;
+    cardEl.style.transform = 'translate(' + curX + 'px,' + curY + 'px) rotate(' + rot + 'deg)';
+    const pull = Math.max(0, Math.min(1, Math.abs(curX)/120));
+    if(curX > 10){
+      stampApprove.style.opacity = pull;
+      stampApprove.style.transform = 'translate(-50%,-50%) rotate(-14deg) scale(' + (0.7+pull*0.3) + ')';
+      stampReject.style.opacity = 0;
+    } else if(curX < -10){
+      stampReject.style.opacity = pull;
+      stampReject.style.transform = 'translate(-50%,-50%) rotate(-14deg) scale(' + (0.7+pull*0.3) + ')';
+      stampApprove.style.opacity = 0;
+    } else {
+      stampApprove.style.opacity = 0; stampReject.style.opacity = 0;
+    }
+  }
+  function pointerUp(){
+    if(!dragging) return;
+    dragging = false;
+    stampApprove.style.opacity = ''; stampApprove.style.transform = '';
+    stampReject.style.opacity = ''; stampReject.style.transform = '';
+    cardEl.style.transition = 'transform 0.25s ease';
+    if(curX > 110){ decide(true); }
+    else if(curX < -110){ decide(false); }
+    else { cardEl.style.transform = 'translate(0,0) rotate(0)'; }
+    curX = 0; curY = 0;
+  }
+
+  cardEl.addEventListener('mousedown', e=> pointerDown(e.clientX, e.clientY));
+  window.addEventListener('mousemove', e=> pointerMove(e.clientX, e.clientY));
+  window.addEventListener('mouseup', pointerUp);
+
+  cardEl.addEventListener('touchstart', e=>{ const t=e.touches[0]; pointerDown(t.clientX, t.clientY); }, {passive:true});
+  cardEl.addEventListener('touchmove', e=>{ const t=e.touches[0]; pointerMove(t.clientX, t.clientY); e.preventDefault(); }, {passive:false});
+  cardEl.addEventListener('touchend', pointerUp);
+
+  startBtn.addEventListener('click', ()=>{
+    ensureAudio();
+    overlay.classList.add('hidden');
+    document.querySelector('#overlay .sub').classList.remove('hidden');
+    document.getElementById('ruleList').classList.remove('hidden');
+    endBlock.classList.add('hidden');
+    bestCounter.textContent = best ? ('Record: ' + best + ' days') : '';
+    resetGame();
+  });
+
+})();
+</script>
+</body>
+</html>
